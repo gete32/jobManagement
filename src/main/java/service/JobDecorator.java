@@ -11,12 +11,17 @@ public class JobDecorator implements Job, InternalJob {
     private final Job job;
     private final Log log = LogFactory.getLog(this.getClass());
 
-    private JobStatusEnum status = JobStatusEnum.NOT_REGISTERED;
-
-    protected PriorityEnum priority = PriorityEnum.MIDDLE;
+    private JobStatusEnum status;
+    private PriorityEnum priority;
 
     JobDecorator(Job job) {
+        this(job, PriorityEnum.MIDDLE);
+    }
+
+    JobDecorator(Job job, PriorityEnum priority) {
         this.job = job;
+        this.priority = priority;
+        this.status = JobStatusEnum.NOT_REGISTERED;
     }
 
     public void increaseStatus(final JobStatusEnum status) throws JobStatusException {
@@ -46,8 +51,7 @@ public class JobDecorator implements Job, InternalJob {
     }
 
     @Override
-    public void setPriority(final PriorityEnum priority){
-        if (priority == null) return;
-        this.priority = priority;
+    public PriorityEnum getPriority() {
+        return priority;
     }
 }

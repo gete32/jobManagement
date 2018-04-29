@@ -4,11 +4,11 @@ import constants.JobStatusEnum;
 import constants.PriorityEnum;
 import exception.JobStatusException;
 
-public interface InternalJob extends Runnable{
+public interface InternalJob extends Runnable {
 
     JobStatusEnum getStatus();
 
-    void setPriority(PriorityEnum priority);
+    PriorityEnum getPriority();
 
     void increaseStatus(final JobStatusEnum status) throws JobStatusException;
 

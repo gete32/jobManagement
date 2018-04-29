@@ -1,14 +1,26 @@
 package service;
 
 import constants.JobStatusEnum;
+import constants.PriorityEnum;
+import exception.JobException;
 import exception.JobStatusException;
+import exception.PriorityException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.*;
 
 public class JobServiceImpl implements JobService {
+
+    private class ComparePriority implements Comparator<Runnable> {
+
+        @Override
+        public int compare(Runnable o1, Runnable o2) {
+            return o1 instanceof InternalJob && o2 instanceof InternalJob ?
+                    ((InternalJob) o1).getPriority().compareTo(((InternalJob) o2).getPriority()) : -1;
+        }
+    }
 
     private final Log log = LogFactory.getLog(this.getClass());
 
@@ -47,7 +59,7 @@ public class JobServiceImpl implements JobService {
     /**
      * Thread pool to perform the processing
      */
-    private ExecutorService pool;
+    private PausableThreadPoolExecutor pool;
 
     /**
      * Thread pool for scheduled jobs
@@ -61,14 +73,19 @@ public class JobServiceImpl implements JobService {
         int availableProcessors = Runtime.getRuntime().availableProcessors();
         int corePoolSize = PROCESSOR_RESERVE >= availableProcessors ?
                 PROCESSOR_MULTIPLIER : (availableProcessors - PROCESSOR_RESERVE) * PROCESSOR_MULTIPLIER;
-        this.pool = new ThreadPoolExecutor(corePoolSize, corePoolSize, 0L, TimeUnit.MILLISECONDS,
-                new PriorityBlockingQueue<>(
-                        QUEUE_CAPACITY,
-                        (o1, o2) -> o1 instanceof JobDecorator && o2 instanceof JobDecorator ?
-                                Integer.compare(((JobDecorator) o1).priority.getPriority(), ((JobDecorator) o2).priority.getPriority()) : -1
-                )
-        );
+        final BlockingQueue<Runnable> bq = new PriorityBlockingQueue<>(QUEUE_CAPACITY, new ComparePriority());
+        this.pool = new PausableThreadPoolExecutor(corePoolSize, corePoolSize, 0L, TimeUnit.MILLISECONDS, bq);
         this.scheduledPool = Executors.newScheduledThreadPool(SCHEDULED_THREADS);
+    }
+
+    private InternalJob submitInternalJob(final InternalJob internalJob){
+        try {
+            internalJob.increaseStatus(JobStatusEnum.QUEUED);
+            this.pool.submit(internalJob, internalJob.getPriority());
+        } catch (JobStatusException e) {
+            log.error(e.getMessage());
+        }
+        return internalJob;
     }
 
     /**
@@ -105,16 +122,37 @@ public class JobServiceImpl implements JobService {
      * @return Future representing the completion of the job.
      */
     @Override
-    public Future<?> submit(final Job job) {
-        if (job == null) return null;
-        final InternalJob internalJob = new JobDecorator(job);
-        try {
-            internalJob.increaseStatus(JobStatusEnum.QUEUED);
-            return this.pool.submit(internalJob);
-        } catch (JobStatusException e) {
-            log.error(e.getMessage());
-        }
-        return null;
+    public InternalJob submit(final Job job) throws JobException {
+        if (job == null) throw new JobException();
+        return submitInternalJob(new JobDecorator(job));
     }
 
+    @Override
+    public InternalJob submit(final Job job, final PriorityEnum priority) throws JobException, PriorityException {
+        if (job == null) throw new JobException();
+        if (priority == null) throw new PriorityException();
+
+        return submitInternalJob(new JobDecorator(job, priority));
+    }
+
+    @Override
+    public List<InternalJob> submitAll(final Collection<Job> jobs) throws JobException {
+        if (jobs == null) return Collections.emptyList();
+        final List<InternalJob> result = new ArrayList<>();
+        this.pool.pause();
+        for (Job job : jobs)
+            result.add(submit(job));
+        this.pool.resume();
+        return result;
+    }
+
+    @Override
+    public void pause(){
+        this.pool.pause();
+    }
+
+    @Override
+    public void resume(){
+        this.pool.resume();
+    }
 }
