@@ -8,7 +8,7 @@ import org.apache.commons.logging.LogFactory;
 import java.util.List;
 import java.util.concurrent.*;
 
-public class JobServiceImpl implements JobService{
+public class JobServiceImpl implements JobService {
 
     private final Log log = LogFactory.getLog(this.getClass());
 
@@ -64,8 +64,8 @@ public class JobServiceImpl implements JobService{
         this.pool = new ThreadPoolExecutor(corePoolSize, corePoolSize, 0L, TimeUnit.MILLISECONDS,
                 new PriorityBlockingQueue<>(
                         QUEUE_CAPACITY,
-                        (o1, o2) -> o1 instanceof AbstractJob && o2 instanceof AbstractJob ?
-                                Integer.compare(((AbstractJob) o1).priority.getPriority(), ((AbstractJob) o2).priority.getPriority()) : -1
+                        (o1, o2) -> o1 instanceof JobDecorator && o2 instanceof JobDecorator ?
+                                Integer.compare(((JobDecorator) o1).priority.getPriority(), ((JobDecorator) o2).priority.getPriority()) : -1
                 )
         );
         this.scheduledPool = Executors.newScheduledThreadPool(SCHEDULED_THREADS);
@@ -107,9 +107,10 @@ public class JobServiceImpl implements JobService{
     @Override
     public Future<?> submit(final Job job) {
         if (job == null) return null;
+        final InternalJob internalJob = new JobDecorator(job);
         try {
-            job.increaseStatus(JobStatusEnum.QUEUED);
-            return this.pool.submit(job);
+            internalJob.increaseStatus(JobStatusEnum.QUEUED);
+            return this.pool.submit(internalJob);
         } catch (JobStatusException e) {
             log.error(e.getMessage());
         }

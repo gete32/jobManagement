@@ -1,9 +1,8 @@
 package job;
 
-import service.AbstractJob;
 import service.Job;
 
-public class JobTest extends AbstractJob implements Job {
+public class JobTest implements Job {
 
     private String code;
 
