@@ -43,8 +43,6 @@ public class JobServiceTest {
             results.addAll(service.submitAll(jobs));
         } catch (Exception e) {
             log.error(e.getMessage());
-        } finally {
-            service.shutdown();
         }
         return results;
     }
@@ -54,7 +52,7 @@ public class JobServiceTest {
         List<Prioritized> jobs = generateJobs(10);
         List<Statusable> results = submitAll(jobs);
         for (Statusable job : results)
-                Assert.assertEquals(job.getResult().get(), JobStatus.SUCCESS);
+                Assert.assertEquals(JobStatus.SUCCESS, job.getResult().get());
     }
 
     @Test
@@ -62,17 +60,7 @@ public class JobServiceTest {
         JobService jobService = JobServiceImpl.getInstance();
         Job job = () -> { throw new Exception(); };
         Statusable result = jobService.submit(job);
-        Assert.assertEquals(result.getResult().get(), JobStatus.FAILED);
-        jobService.shutdown();
-    }
-
-    @Test
-    public void testRunning() throws JobException {
-        JobService jobService = JobServiceImpl.getInstance();
-        Job job = this::wait;
-        Statusable result = jobService.submit(job);
-        Assert.assertEquals(result.getStatus(), JobStatus.RUNNING);
-        jobService.shutdownNow();
+        Assert.assertEquals(JobStatus.FAILED, result.getResult().get());
     }
 
     @Test
@@ -82,8 +70,7 @@ public class JobServiceTest {
         List<Prioritized> jobs = generateJobs(10);
         List<JobResult> results = jobService.submitAll(jobs);
         for (Statusable job : results)
-            Assert.assertEquals(job.getStatus(), JobStatus.QUEUED);
-        jobService.shutdown();
+            Assert.assertEquals(JobStatus.QUEUED, job.getStatus());
     }
 
     @Test
@@ -98,7 +85,8 @@ public class JobServiceTest {
         Map<Priority, List<Job>> jobMap = jobs.stream().collect(Collectors.groupingBy(Prioritized::getPriority, Collectors.toList()));
         Stream.of(HIGHT, MIDDLE, LOW).forEach(priority -> {
             int priorityCount = jobMap.get(priority).size();
-            IntStream.range(counter.get(), priorityCount).forEach(i -> Assert.assertEquals(priority, results.get(i).getPriority()));
+            IntStream.range(counter.get(), priorityCount)
+                    .forEach(i -> Assert.assertEquals(priority, results.get(i).getPriority()));
             counter.addAndGet(priorityCount);
         });
         jobService.shutdown();

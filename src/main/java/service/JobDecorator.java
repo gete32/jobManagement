@@ -45,9 +45,9 @@ public class JobDecorator implements JobResult {
             this.process();
             return increaseStatus(JobStatus.SUCCESS);
         } catch (Exception e) {
-            LOG.error(e.getMessage());
+            LOG.error(e);
         }
-        return JobStatus.FAILED;
+        return this.status = JobStatus.FAILED;
     }
 
     @Override
@@ -56,13 +56,13 @@ public class JobDecorator implements JobResult {
     }
 
     @Override
-    public JobStatus getStatus() {
-        return status;
+    public synchronized JobStatus getStatus() {
+        return this.status;
     }
 
     @Override
     public Priority getPriority() {
-        return priority;
+        return this.priority;
     }
 
     @Override
@@ -72,7 +72,7 @@ public class JobDecorator implements JobResult {
 
     @Override
     public Future<JobStatus> getResult() {
-        return result;
+        return this.result;
     }
 
     @Override

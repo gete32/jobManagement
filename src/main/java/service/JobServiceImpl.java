@@ -9,7 +9,9 @@ import utils.ServiceUtils;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class JobServiceImpl implements JobService {
@@ -41,11 +43,6 @@ public class JobServiceImpl implements JobService {
      */
     private PausableThreadPoolExecutor pool;
 
-    /**
-     * Thread pool for scheduled jobs
-     */
-    private ScheduledExecutorService scheduledPool;
-
     static {
         INSTANCE = new JobServiceImpl();
     }
@@ -55,7 +52,6 @@ public class JobServiceImpl implements JobService {
         int corePoolSize = ServiceUtils.getCorePoolSize();
         final BlockingQueue<Runnable> bq = new PriorityBlockingQueue<>(QUEUE_CAPACITY);
         this.pool = new PausableThreadPoolExecutor(corePoolSize, corePoolSize, keepAliveTime, TimeUnit.MILLISECONDS, bq);
-        this.scheduledPool = Executors.newScheduledThreadPool(SCHEDULED_THREADS);
     }
 
     /**
@@ -133,5 +129,10 @@ public class JobServiceImpl implements JobService {
     @Override
     public void resume(){
         this.pool.resume();
+    }
+
+    @Override
+    public int getActiveCount(){
+        return this.pool.getActiveCount();
     }
 }

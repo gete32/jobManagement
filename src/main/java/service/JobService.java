@@ -23,4 +23,6 @@ public interface JobService {
     void pause();
 
     void resume();
+
+    int getActiveCount();
 }
