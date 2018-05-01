@@ -3,6 +3,6 @@ package service.job;
 @FunctionalInterface
 public interface Job {
 
-    void process();
+    void process() throws Exception;
 
 }

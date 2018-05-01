@@ -2,11 +2,10 @@ package service;
 
 import exception.JobException;
 import exception.PriorityException;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import service.job.Job;
 import service.job.JobResult;
 import service.job.Prioritized;
+import utils.ServiceUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,22 +14,10 @@ import java.util.stream.Collectors;
 
 public class JobServiceImpl implements JobService {
 
-    private final Log log = LogFactory.getLog(this.getClass());
-
     /**
      * Number of threads to preserve for scheduled jobs
      */
     private static final int SCHEDULED_THREADS = 1;
-
-    /**
-     * Number of processor to leave in reserve
-     */
-    private static final int PROCESSOR_RESERVE = 1;
-
-    /**
-     * Number to multiply processors by for number of threads to keep ready.
-     */
-    private static final int PROCESSOR_MULTIPLIER = 5;
 
     /**
      * Job queue initial capacity
@@ -43,8 +30,6 @@ public class JobServiceImpl implements JobService {
     private static JobServiceImpl INSTANCE;
 
     /**
-     *
-     *
      * @return Global Instance of the Job Manager
      */
     public static JobServiceImpl getInstance() {
@@ -66,10 +51,8 @@ public class JobServiceImpl implements JobService {
     }
 
     private JobServiceImpl() {
-        int availableProcessors = Runtime.getRuntime().availableProcessors();
         Long keepAliveTime = 0L;
-        int corePoolSize = PROCESSOR_RESERVE >= availableProcessors ?
-                PROCESSOR_MULTIPLIER : (availableProcessors - PROCESSOR_RESERVE) * PROCESSOR_MULTIPLIER;
+        int corePoolSize = ServiceUtils.getCorePoolSize();
         final BlockingQueue<Runnable> bq = new PriorityBlockingQueue<>(QUEUE_CAPACITY);
         this.pool = new PausableThreadPoolExecutor(corePoolSize, corePoolSize, keepAliveTime, TimeUnit.MILLISECONDS, bq);
         this.scheduledPool = Executors.newScheduledThreadPool(SCHEDULED_THREADS);

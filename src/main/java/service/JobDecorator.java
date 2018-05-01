@@ -13,8 +13,9 @@ import java.util.concurrent.Future;
 
 public class JobDecorator implements JobResult {
 
+    private final Log LOG = LogFactory.getLog(this.getClass());
+
     private final Job job;
-    private final Log log = LogFactory.getLog(this.getClass());
     private JobStatus status;
     private Priority priority;
     private Future<JobStatus> result;
@@ -44,13 +45,13 @@ public class JobDecorator implements JobResult {
             this.process();
             return increaseStatus(JobStatus.SUCCESS);
         } catch (Exception e) {
-            log.error(e.getMessage());
+            LOG.error(e.getMessage());
         }
         return JobStatus.FAILED;
     }
 
     @Override
-    public void process() {
+    public void process() throws Exception {
         job.process();
     }
 

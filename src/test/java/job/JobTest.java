@@ -1,29 +1,20 @@
 package job;
 
 import constants.Priority;
-import service.job.Job;
 import service.job.Prioritized;
 
-public class JobTest implements Job, Prioritized {
+public class JobTest implements Prioritized {
 
-    private String code;
     private Priority priority;
 
-    public JobTest(String code, Priority priority) {
-        this.code = code;
+    public JobTest(Priority priority) {
         this.priority = priority;
     }
 
     @Override
-    public void process() {
-        System.out.println("service " + code + " priority " + priority.name());
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
+    public void process() { }
 
+    @Override
     public Priority getPriority() {
         return priority;
     }
