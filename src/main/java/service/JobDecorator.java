@@ -1,43 +1,52 @@
 package service;
 
-import constants.JobStatusEnum;
-import constants.PriorityEnum;
+import constants.JobStatus;
+import constants.Priority;
 import exception.JobStatusException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import service.job.Job;
+import service.job.JobResult;
+import service.job.Prioritized;
 
-public class JobDecorator implements Job, InternalJob {
+import java.util.concurrent.Future;
+
+public class JobDecorator implements JobResult {
 
     private final Job job;
     private final Log log = LogFactory.getLog(this.getClass());
+    private JobStatus status;
+    private Priority priority;
+    private Future<JobStatus> result;
 
-    private JobStatusEnum status;
-    private PriorityEnum priority;
-
-    JobDecorator(Job job) {
-        this(job, PriorityEnum.MIDDLE);
-    }
-
-    JobDecorator(Job job, PriorityEnum priority) {
+    JobDecorator(final Job job) {
         this.job = job;
-        this.priority = priority;
-        this.status = JobStatusEnum.NOT_REGISTERED;
+        this.status = JobStatus.QUEUED;
+        this.priority = Priority.MIDDLE;
     }
 
-    public void increaseStatus(final JobStatusEnum status) throws JobStatusException {
-        this.status = this.status.isNext(status) ? status : JobStatusEnum.FAILED;
-        if (!this.status.is(status)) throw new JobStatusException();
+    JobDecorator(final Prioritized job) {
+        this.job = job;
+        this.priority = job.getPriority();
+        this.status = JobStatus.QUEUED;
+    }
+
+    private JobStatus increaseStatus(final JobStatus status) throws JobStatusException {
+        this.status = this.status.isNext(status) ? status : JobStatus.FAILED;
+        if (!this.status.equals(status)) throw new JobStatusException();
+        return this.status;
     }
 
     @Override
-    public void run() {
+    public JobStatus call() {
         try {
-            increaseStatus(JobStatusEnum.RUNNING);
+            increaseStatus(JobStatus.RUNNING);
             this.process();
-            increaseStatus(JobStatusEnum.SUCCESS);
-        } catch (JobStatusException e) {
+            return increaseStatus(JobStatus.SUCCESS);
+        } catch (Exception e) {
             log.error(e.getMessage());
         }
+        return JobStatus.FAILED;
     }
 
     @Override
@@ -46,12 +55,27 @@ public class JobDecorator implements Job, InternalJob {
     }
 
     @Override
-    public JobStatusEnum getStatus() {
+    public JobStatus getStatus() {
         return status;
     }
 
     @Override
-    public PriorityEnum getPriority() {
+    public Priority getPriority() {
         return priority;
+    }
+
+    @Override
+    public int compareTo(final Prioritized o) {
+        return this.priority.compareTo(o.getPriority());
+    }
+
+    @Override
+    public Future<JobStatus> getResult() {
+        return result;
+    }
+
+    @Override
+    public void setResult(Future<JobStatus> result) {
+        this.result = result;
     }
 }

@@ -1,26 +1,19 @@
 package service;
 
-import constants.JobStatusEnum;
-import constants.PriorityEnum;
 import exception.JobException;
-import exception.JobStatusException;
 import exception.PriorityException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import service.job.Job;
+import service.job.JobResult;
+import service.job.Prioritized;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 public class JobServiceImpl implements JobService {
-
-    private class ComparePriority implements Comparator<Runnable> {
-
-        @Override
-        public int compare(Runnable o1, Runnable o2) {
-            return o1 instanceof InternalJob && o2 instanceof InternalJob ?
-                    ((InternalJob) o1).getPriority().compareTo(((InternalJob) o2).getPriority()) : -1;
-        }
-    }
 
     private final Log log = LogFactory.getLog(this.getClass());
 
@@ -42,18 +35,20 @@ public class JobServiceImpl implements JobService {
     /**
      * Job queue initial capacity
      */
-    private static final int QUEUE_CAPACITY = 100;
+    private static final int QUEUE_CAPACITY = 1;
 
     /**
      * Job Manager Global Instance
      */
-    private static JobServiceImpl INSTANCE = null;
+    private static JobServiceImpl INSTANCE;
 
     /**
+     *
+     *
      * @return Global Instance of the Job Manager
      */
     public static JobServiceImpl getInstance() {
-        return INSTANCE == null ? INSTANCE = new JobServiceImpl() : INSTANCE;
+        return INSTANCE;
     }
 
     /**
@@ -66,25 +61,27 @@ public class JobServiceImpl implements JobService {
      */
     private ScheduledExecutorService scheduledPool;
 
-    /**
-     * Constructor protected to limit instantiation.
-     */
+    static {
+        INSTANCE = new JobServiceImpl();
+    }
+
     private JobServiceImpl() {
         int availableProcessors = Runtime.getRuntime().availableProcessors();
+        Long keepAliveTime = 0L;
         int corePoolSize = PROCESSOR_RESERVE >= availableProcessors ?
                 PROCESSOR_MULTIPLIER : (availableProcessors - PROCESSOR_RESERVE) * PROCESSOR_MULTIPLIER;
-        final BlockingQueue<Runnable> bq = new PriorityBlockingQueue<>(QUEUE_CAPACITY, new ComparePriority());
-        this.pool = new PausableThreadPoolExecutor(corePoolSize, corePoolSize, 0L, TimeUnit.MILLISECONDS, bq);
+        final BlockingQueue<Runnable> bq = new PriorityBlockingQueue<>(QUEUE_CAPACITY);
+        this.pool = new PausableThreadPoolExecutor(corePoolSize, corePoolSize, keepAliveTime, TimeUnit.MILLISECONDS, bq);
         this.scheduledPool = Executors.newScheduledThreadPool(SCHEDULED_THREADS);
     }
 
-    private InternalJob submitInternalJob(final InternalJob internalJob){
-        try {
-            internalJob.increaseStatus(JobStatusEnum.QUEUED);
-            this.pool.submit(internalJob, internalJob.getPriority());
-        } catch (JobStatusException e) {
-            log.error(e.getMessage());
-        }
+    /**
+     * Method submit the internal job to the executor
+     * @param internalJob Job that has status, result and priority
+     * @return JobResult that has the future result of the execution.
+     */
+    private JobResult submitInternalJob(final JobResult internalJob){
+        internalJob.setResult(this.pool.submit(internalJob, internalJob.getPriority()));
         return internalJob;
     }
 
@@ -122,28 +119,27 @@ public class JobServiceImpl implements JobService {
      * @return Future representing the completion of the job.
      */
     @Override
-    public InternalJob submit(final Job job) throws JobException {
+    public JobResult submit(final Job job) throws JobException {
         if (job == null) throw new JobException();
         return submitInternalJob(new JobDecorator(job));
     }
 
     @Override
-    public InternalJob submit(final Job job, final PriorityEnum priority) throws JobException, PriorityException {
+    public JobResult submit(final Prioritized job) throws JobException, PriorityException {
         if (job == null) throw new JobException();
-        if (priority == null) throw new PriorityException();
+        if (job.getPriority() == null) throw new PriorityException();
 
-        return submitInternalJob(new JobDecorator(job, priority));
+        return submitInternalJob(new JobDecorator(job));
     }
 
     @Override
-    public List<InternalJob> submitAll(final Collection<Job> jobs) throws JobException {
-        if (jobs == null) return Collections.emptyList();
-        final List<InternalJob> result = new ArrayList<>();
-        this.pool.pause();
-        for (Job job : jobs)
-            result.add(submit(job));
-        this.pool.resume();
-        return result;
+    public List<JobResult> submitAll(final List<Prioritized> jobs) throws JobException, PriorityException {
+        List<Prioritized> prioritizedList = jobs.stream().sorted().collect(Collectors.toList());
+        List<JobResult> innerJobs = new ArrayList<>();
+        for (Prioritized prioritized : prioritizedList) {
+            innerJobs.add(submit(prioritized));
+        }
+        return innerJobs;
     }
 
     @Override

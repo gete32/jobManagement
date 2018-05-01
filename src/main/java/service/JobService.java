@@ -1,10 +1,11 @@
 package service;
 
-import constants.PriorityEnum;
 import exception.JobException;
 import exception.PriorityException;
+import service.job.Job;
+import service.job.JobResult;
+import service.job.Prioritized;
 
-import java.util.Collection;
 import java.util.List;
 
 public interface JobService {
@@ -13,11 +14,11 @@ public interface JobService {
 
     List<Runnable> shutdownNow();
 
-    InternalJob submit(final Job job) throws JobException;
+    JobResult submit(final Job job) throws JobException;
 
-    InternalJob submit(Job job, PriorityEnum priority) throws JobException, PriorityException;
+    JobResult submit(Prioritized job) throws JobException, PriorityException;
 
-    List<InternalJob> submitAll(Collection<Job> jobs) throws JobException;
+    List<JobResult> submitAll(List<Prioritized> jobs) throws JobException, PriorityException;
 
     void pause();
 

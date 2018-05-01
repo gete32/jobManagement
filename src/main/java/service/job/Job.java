@@ -1,4 +1,4 @@
-package service;
+package service.job;
 
 @FunctionalInterface
 public interface Job {

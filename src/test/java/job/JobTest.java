@@ -1,14 +1,15 @@
 package job;
 
-import constants.PriorityEnum;
-import service.Job;
+import constants.Priority;
+import service.job.Job;
+import service.job.Prioritized;
 
-public class JobTest implements Job {
+public class JobTest implements Job, Prioritized {
 
     private String code;
-    private PriorityEnum priority;
+    private Priority priority;
 
-    public JobTest(String code, PriorityEnum priority) {
+    public JobTest(String code, Priority priority) {
         this.code = code;
         this.priority = priority;
     }
@@ -23,7 +24,12 @@ public class JobTest implements Job {
         }
     }
 
-    public PriorityEnum getPriority() {
+    public Priority getPriority() {
         return priority;
+    }
+
+    @Override
+    public int compareTo(Prioritized o) {
+        return this.priority.compareTo(o.getPriority());
     }
 }

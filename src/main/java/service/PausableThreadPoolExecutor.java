@@ -1,8 +1,8 @@
 package service;
 
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import constants.Priority;
+
+import java.util.concurrent.*;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -30,6 +30,12 @@ class PausableThreadPoolExecutor extends ThreadPoolExecutor {
         } finally {
             pauseLock.unlock();
         }
+    }
+
+    public <T> Future<T> submit(Callable<T> task, Priority priority) {
+        RunnableFuture<T> futureTask = new ComparableFutureTask<>(task, priority);
+        execute(futureTask);
+        return futureTask;
     }
 
     public void pause() {
